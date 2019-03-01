@@ -3,12 +3,12 @@ package com.johnchang.Queueco.model;
 import java.math.BigInteger;
 import java.util.Objects;
 
-public class Bid {
+public class BestBid {
 
     private double price;
-    private BigInteger quantity;
+    private Double quantity;
 
-    public Bid(double price, BigInteger quantity) {
+    public BestBid(double price, Double quantity) {
         this.price = price;
         this.quantity = quantity;
     }
@@ -21,21 +21,21 @@ public class Bid {
         this.price = price;
     }
 
-    public BigInteger getQuantity() {
+    public Double getQuantity() {
         return quantity;
     }
 
-    public void setQuantity(BigInteger quantity) {
+    public void setQuantity(Double quantity) {
         this.quantity = quantity;
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Bid)) return false;
-        Bid bid = (Bid) o;
-        return Double.compare(bid.price, price) == 0 &&
-                Objects.equals(quantity, bid.quantity);
+        if (o == null || getClass() != o.getClass()) return false;
+        BestBid bestBid = (BestBid) o;
+        return Double.compare(bestBid.price, price) == 0 &&
+                Objects.equals(quantity, bestBid.quantity);
     }
 
     @Override
@@ -45,9 +45,6 @@ public class Bid {
 
     @Override
     public String toString() {
-        return "Bid{" +
-                "price=" + price +
-                ", quantity=" + quantity +
-                '}';
+        return "Best Bid: " + price + ", quantity: " + quantity;
     }
 }
