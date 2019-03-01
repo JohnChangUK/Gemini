@@ -45,6 +45,6 @@ public class BestBid {
 
     @Override
     public String toString() {
-        return "Best Bid: " + price + ", quantity: " + quantity;
+        return price + " " + quantity;
     }
 }

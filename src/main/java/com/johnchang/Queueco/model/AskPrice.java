@@ -45,6 +45,6 @@ public class AskPrice {
 
     @Override
     public String toString() {
-        return "Ask Price: " + price + ", quantity: " + quantity;
+        return price + " " + quantity;
     }
 }
