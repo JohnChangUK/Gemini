@@ -4,8 +4,8 @@
 
 ## Gemini Best Bid and Ask Price
 
-![Alt text](geminiWebsiteOutput.png)
+![Alt text](geminiOutput.png)
 
 
 ## Terminal Output
-![Alt text](terminalOutput.png)
+![Alt text](terminal.png)
