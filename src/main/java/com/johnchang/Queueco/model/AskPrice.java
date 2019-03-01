@@ -1,12 +1,14 @@
 package com.johnchang.Queueco.model;
 
-import java.math.BigInteger;
 import java.util.Objects;
 
-public class AskPrice {
+public class AskPrice implements Price {
 
     private double price;
     private Double quantity;
+
+    public AskPrice() {
+    }
 
     public AskPrice(double price, Double quantity) {
         this.price = price;
