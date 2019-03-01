@@ -26,7 +26,7 @@ sourceCompatibility = 1.8
 
 task customFatJar(type: Jar) {
 	manifest {
-		attributes 'Main-Class': 'MainQuote'
+		attributes 'Main-Class': 'com.johnchang.Queueco.QueuecoApplication'
 	}
 	baseName = 'all-in-one-jar'
 	from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
