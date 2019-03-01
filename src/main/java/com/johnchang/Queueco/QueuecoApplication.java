@@ -53,16 +53,16 @@ public class QueuecoApplication implements CommandLineRunner {
 
             for (LinkedTreeMap treeMap : events) {
                 if (treeMap.get("side") != null && treeMap.get("side").equals("bid")) {
-                    bestBidPrice = setPriceAndQuantity(bestBidPrice, treeMap, bestBid);
+                    setPriceAndQuantity(bestBidPrice, treeMap, bestBid);
                 } else if (treeMap.get("side") != null && treeMap.get("side").equals("ask")) {
-                    bestAskPrice = setPriceAndQuantity(bestAskPrice, treeMap, askPrice);
+                    setPriceAndQuantity(bestAskPrice, treeMap, askPrice);
                 }
             }
 
             System.out.println(bestBid + " - " + askPrice);
         }
 
-        private Double setPriceAndQuantity(Double bestPrice, LinkedTreeMap treeMap, Price priceClass) {
+        private void setPriceAndQuantity(Double bestPrice, LinkedTreeMap treeMap, Price priceClass) {
             String price = (String) treeMap.get("price");
             Double priceInt = Double.valueOf(price);
 
@@ -71,8 +71,6 @@ public class QueuecoApplication implements CommandLineRunner {
                 priceClass.setPrice(bestPrice);
                 priceClass.setQuantity(Double.valueOf((String) treeMap.get("remaining")));
             }
-
-            return bestPrice;
         }
 
         @Override
