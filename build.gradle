@@ -24,6 +24,8 @@ group = 'com.johnchang'
 version = '1.0.0-SNAPSHOT'
 sourceCompatibility = 1.8
 
+mainClassName = "com.johnchang.Queueco.QueuecoApplication"
+
 task customFatJar(type: Jar) {
 	manifest {
 		attributes 'Main-Class': 'com.johnchang.Queueco.QueuecoApplication'

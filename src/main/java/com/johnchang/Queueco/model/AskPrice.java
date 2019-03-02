@@ -1,7 +1,10 @@
 package com.johnchang.Queueco.model;
 
+import org.springframework.stereotype.Component;
+
 import java.util.Objects;
 
+@Component
 public class AskPrice implements Price {
 
     private double price;

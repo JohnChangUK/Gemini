@@ -5,9 +5,8 @@ import java.util.Map;
 
 import com.google.gson.Gson;
 import com.google.gson.internal.LinkedTreeMap;
-import com.johnchang.Queueco.model.AskPrice;
-import com.johnchang.Queueco.model.BestBid;
 import com.johnchang.Queueco.model.Price;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -21,13 +20,20 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 @SpringBootApplication
 public class QueuecoApplication implements CommandLineRunner {
 
-    private static String GEMINI_WSS = "wss://api.gemini.com/v1/marketdata/btcusd";
-    Price bestBid;
-    private Price askPrice;
+    private final Price bestBid;
+    private final Price askPrice;
 
-    public QueuecoApplication() {
-        bestBid = new BestBid();
-        askPrice = new AskPrice();
+    Double bestBidPrice = 0.00;
+    Double bestAskPrice = 0.00;
+    Double oldBidPrice = 0.00;
+    Double oldAskPrice = 0.00;
+
+    private static String GEMINI_WSS = "wss://api.gemini.com/v1/marketdata/btcusd";
+
+    @Autowired
+    public QueuecoApplication(Price bestBid, Price askPrice) {
+        this.bestBid = bestBid;
+        this.askPrice = askPrice;
     }
 
     public static void main(String[] args) {
@@ -45,26 +51,38 @@ public class QueuecoApplication implements CommandLineRunner {
 
         @Override
         public void handleTextMessage(WebSocketSession session, TextMessage message) {
-            Double bestBidPrice = 0.0;
-            Double bestAskPrice = 0.0;
 
             Map value = new Gson().fromJson(message.getPayload(), Map.class);
             List<LinkedTreeMap> events = (List<LinkedTreeMap>) value.get("events");
 
             for (LinkedTreeMap treeMap : events) {
                 if (treeMap.get("side") != null && treeMap.get("side").equals("bid")) {
-                    setPriceAndQuantity(bestBidPrice, treeMap, bestBid);
+                    Double priceInt = Double.valueOf(treeMap.get("price").toString());
+
+                    if (priceInt > bestBidPrice && bestBidPrice < 1000000) {
+                        oldBidPrice = priceInt;
+                        bestBidPrice = priceInt;
+                        bestBid.setPrice(bestBidPrice);
+                        bestBid.setQuantity(Double.valueOf((String) treeMap.get("remaining")));
+                    }
                 } else if (treeMap.get("side") != null && treeMap.get("side").equals("ask")) {
-                    setPriceAndQuantity(bestAskPrice, treeMap, askPrice);
+                    Double priceInt = Double.valueOf(treeMap.get("price").toString());
+                    if (priceInt > bestAskPrice && bestAskPrice < 1000000) {
+                        oldAskPrice = priceInt;
+                        bestAskPrice = priceInt;
+                        askPrice.setPrice(bestAskPrice);
+                        askPrice.setQuantity(Double.valueOf((String) treeMap.get("remaining")));
+                    }
                 }
             }
 
-            System.out.println(bestBid + " - " + askPrice);
+            if (!bestBidPrice.equals(oldBidPrice) || !bestAskPrice.equals(oldAskPrice)) {
+                System.out.println(bestBid + " - " + askPrice);
+            }
         }
 
         private void setPriceAndQuantity(Double bestPrice, LinkedTreeMap treeMap, Price priceClass) {
-            String price = (String) treeMap.get("price");
-            Double priceInt = Double.valueOf(price);
+            Double priceInt = Double.valueOf(treeMap.get("price").toString());
 
             if (priceInt > bestPrice) {
                 bestPrice = priceInt;
