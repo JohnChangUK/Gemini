@@ -59,26 +59,30 @@ public class QueuecoApplication implements CommandLineRunner {
                 if (treeMap.get("side") != null && treeMap.get("side").equals("bid")) {
                     Double priceInt = Double.valueOf(treeMap.get("price").toString());
 
-                    if (priceInt > bestBidPrice && bestBidPrice < 1000000) {
+                    if (priceInt > bestBidPrice && bestBidPrice < 1000000.0) {
                         oldBidPrice = priceInt;
                         bestBidPrice = priceInt;
                         bestBid.setPrice(bestBidPrice);
                         bestBid.setQuantity(Double.valueOf((String) treeMap.get("remaining")));
                     }
+                    if (!bestBidPrice.equals(oldBidPrice) || !bestAskPrice.equals(oldAskPrice)) {
+                        System.out.println(bestBid + " - " + askPrice);
+                    }
                 } else if (treeMap.get("side") != null && treeMap.get("side").equals("ask")) {
                     Double priceInt = Double.valueOf(treeMap.get("price").toString());
-                    if (priceInt > bestAskPrice && bestAskPrice < 1000000) {
+                    if (priceInt > bestAskPrice && bestAskPrice < 100000.0) {
                         oldAskPrice = priceInt;
                         bestAskPrice = priceInt;
                         askPrice.setPrice(bestAskPrice);
                         askPrice.setQuantity(Double.valueOf((String) treeMap.get("remaining")));
                     }
+                    if (!bestBidPrice.equals(oldBidPrice) || !bestAskPrice.equals(oldAskPrice)) {
+                        System.out.println(bestBid + " - " + askPrice);
+                    }
                 }
             }
 
-            if (!bestBidPrice.equals(oldBidPrice) || !bestAskPrice.equals(oldAskPrice)) {
-                System.out.println(bestBid + " - " + askPrice);
-            }
+
         }
 
         private void setPriceAndQuantity(Double bestPrice, LinkedTreeMap treeMap, Price priceClass) {
