@@ -73,12 +73,24 @@ public class QueuecoApplication implements CommandLineRunner {
             List<LinkedTreeMap> events = (List<LinkedTreeMap>) value.get("events");
 
             LinkedTreeMap result = new LinkedTreeMap();
+            LinkedTreeMap tradeResult = new LinkedTreeMap();
             for (LinkedTreeMap<Object, Object> map : events) {
                 for (Map.Entry<Object, Object> entry : map.entrySet()) {
-                    result.put(entry.getKey(), entry.getValue());
+                    if (map.size() == 6) {
+                        result.put(entry.getKey(), entry.getValue());
+                    } else if (map.size() == 5) {
+                        tradeResult.put(entry.getKey(), entry.getValue());
+                    }
                 }
 
-                if (events.get(0).size() == 6) {
+                if (events.size() == 2) {
+                    // Trade event occurs
+                    OrderBook book = bidList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
+                    OrderBook askbook = askList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
+                    Trade trade = mapper.convertValue(tradeResult, Trade.class);
+                    System.out.println("TRADE Object: " + trade);
+
+                } else if (events.get(0).size() == 6) {
                     OrderBook orderBook = mapper.convertValue(result, OrderBook.class);
                     if (orderBook.getReason().equals("initial")) {
                         if (orderBook.getSide() != null && orderBook.getSide().equals("bid")) {
@@ -143,12 +155,7 @@ public class QueuecoApplication implements CommandLineRunner {
                             }
                         }
                     }
-                } else {
-                    Trade trade = mapper.convertValue(result, Trade.class);
-                    System.out.println("TRADE Object: " + trade);
                 }
-
-                ++count;
 
                 Collections.sort(bidList, bidPriceCompare);
                 Collections.sort(askList, askPriceCompare);

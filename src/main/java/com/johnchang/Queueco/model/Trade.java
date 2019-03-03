@@ -1,37 +1,46 @@
 package com.johnchang.Queueco.model;
 
-import java.math.BigInteger;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Objects;
 
 public class Trade {
 
-    private String trade;
-    private BigInteger tid;
+    @JsonProperty("type")
+    private String type;
+    @JsonProperty("tid")
+    private Double tid;
+    @JsonProperty("price")
     private Double price;
+    @JsonProperty("amount")
     private Double amount;
+    @JsonProperty("makerSide")
     private String makerSide;
 
-    public Trade(String trade, BigInteger tid, Double price, Double amount, String makerSide) {
-        this.trade = trade;
+    public Trade() {
+    }
+
+    public Trade(String type, Double tid, Double price, Double amount, String makerSide) {
+        this.type = type;
         this.tid = tid;
         this.price = price;
         this.amount = amount;
         this.makerSide = makerSide;
     }
 
-    public String getTrade() {
-        return trade;
+    public String getType() {
+        return type;
     }
 
-    public void setTrade(String trade) {
-        this.trade = trade;
+    public void setType(String type) {
+        this.type = type;
     }
 
-    public BigInteger getTid() {
+    public Double getTid() {
         return tid;
     }
 
-    public void setTid(BigInteger tid) {
+    public void setTid(Double tid) {
         this.tid = tid;
     }
 
@@ -63,23 +72,23 @@ public class Trade {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        Trade trade1 = (Trade) o;
-        return Objects.equals(trade, trade1.trade) &&
-                Objects.equals(tid, trade1.tid) &&
-                Objects.equals(price, trade1.price) &&
-                Objects.equals(amount, trade1.amount) &&
-                Objects.equals(makerSide, trade1.makerSide);
+        Trade trade = (Trade) o;
+        return Objects.equals(type, trade.type) &&
+                Objects.equals(tid, trade.tid) &&
+                Objects.equals(price, trade.price) &&
+                Objects.equals(amount, trade.amount) &&
+                Objects.equals(makerSide, trade.makerSide);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(trade, tid, price, amount, makerSide);
+        return Objects.hash(type, tid, price, amount, makerSide);
     }
 
     @Override
     public String toString() {
         return "Trade{" +
-                "trade='" + trade + '\'' +
+                "type='" + type + '\'' +
                 ", tid=" + tid +
                 ", price=" + price +
                 ", amount=" + amount +
