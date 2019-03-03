@@ -80,25 +80,33 @@ public class QueuecoApplication implements CommandLineRunner {
                 // Trade event occurs
                 if (events.get(0).size() == 5 && events.get(0).get("makerSide").equals("bid")) {
                     Trade bidTrade = mapper.convertValue(tradeResult, Trade.class);
-                    OrderBook bidBook = bidList.stream().filter(x -> x.getPrice().equals(bidTrade.getPrice())).findFirst().orElse(null);
+                    OrderBook bidBookTrade = bidList.stream().filter(x -> x.getPrice().equals(bidTrade.getPrice())).findFirst().orElse(null);
 
-                    int index = bidList.indexOf(bidBook);
-                    bidList.get(index).setRemaining(bidList.get(index).getRemaining() - bidTrade.getAmount());
+                    if (bidList.indexOf(bidBookTrade) != -1) {
+                        int index = bidList.indexOf(bidBookTrade);
+                        bidList.get(index).setRemaining(bidList.get(index).getRemaining() - bidTrade.getAmount());
 
-                    if (bidList.get(index).getRemaining() <= 0) {
-                        bidList.remove(bidBook);
+                        if (bidList.get(index).getRemaining() <= 0) {
+                            bidList.remove(bidBookTrade);
+                        }
+                    } else {
+                        System.out.println("Orderbook doesn't exist for BidBookTrade: " + bidBookTrade);
                     }
                 }
 
                 if (events.get(0).size() == 5 && events.get(0).get("makerSide").equals("ask")) {
                     Trade askTrade = mapper.convertValue(tradeResult, Trade.class);
-                    OrderBook askBook = askList.stream().filter(x -> x.getPrice().equals(askTrade.getPrice())).findFirst().orElse(null);
+                    OrderBook askBookTrade = askList.stream().filter(x -> x.getPrice().equals(askTrade.getPrice())).findFirst().orElse(null);
 
-                    int index = askList.indexOf(askBook);
-                    askList.get(index).setRemaining(askList.get(index).getRemaining() - askTrade.getAmount());
+                    if (askList.indexOf(askBookTrade) != -1) {
+                        int index = askList.indexOf(askBookTrade);
+                        askList.get(index).setRemaining(askList.get(index).getRemaining() - askTrade.getAmount());
 
-                    if (askList.get(index).getRemaining() <= 0) {
-                        askList.remove(askBook);
+                        if (askList.get(index).getRemaining() <= 0) {
+                            askList.remove(askBookTrade);
+                        }
+                    } else {
+                        System.out.println("Orderbook doesnt exist for AskBookTrade: " + askBookTrade);
                     }
                 }
 
@@ -115,43 +123,51 @@ public class QueuecoApplication implements CommandLineRunner {
                         }
 
                         if (orderBook.getReason().equals("cancel")) {
-                            OrderBook book = bidList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
+                            OrderBook bidBookCancel = bidList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
 
                             if (orderBook.getSide() != null && orderBook.getSide().equals("bid")) {
-                                int index = bidList.indexOf(book);
+                                if (bidList.indexOf(bidBookCancel) != -1) {
+                                    int index = bidList.indexOf(bidBookCancel);
 
-                                if (orderBook.getRemaining() <= 0) {
-                                    bidList.remove(book);
+                                    if (orderBook.getRemaining() <= 0) {
+                                        bidList.remove(bidBookCancel);
+                                    } else {
+                                        bidList.get(index).setRemaining(orderBook.getRemaining());
+                                    }
                                 } else {
-                                    bidList.get(index).setRemaining(orderBook.getRemaining());
+                                    System.out.println("Orderbook doesnt exist for BidBookCancel: " + bidBookCancel);
                                 }
                             }
 
                             if (orderBook.getSide() != null && orderBook.getSide().equals("ask")) {
-                                OrderBook askBook = askList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
-                                int askIndex = askList.indexOf(askBook);
+                                OrderBook askBookCancel = askList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
+                                if (askList.indexOf(askBookCancel) != -1) {
+                                    int askIndex = askList.indexOf(askBookCancel);
 
-                                if (orderBook.getRemaining() <= 0) {
-                                    askList.remove(askBook);
+                                    if (orderBook.getRemaining() <= 0) {
+                                        askList.remove(askBookCancel);
+                                    } else {
+                                        askList.get(askIndex).setRemaining(orderBook.getRemaining());
+                                    }
                                 } else {
-                                    askList.get(askIndex).setRemaining(orderBook.getRemaining());
+                                    System.out.println("Orderbook doesnt exist for AskBookCancel: " + askBookCancel);
                                 }
                             }
                         }
 
                         if (orderBook.getReason().equals("place")) {
-                            Optional<OrderBook> book = bidList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst();
-                            Optional<OrderBook> askbook = askList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst();
+                            Optional<OrderBook> bookPlace = bidList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst();
+                            Optional<OrderBook> askBookPlace = askList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst();
 
                             if (orderBook.getSide() != null && orderBook.getSide().equals("bid")) {
-                                if (book.isPresent()) {
-                                    orderBook.setRemaining(orderBook.getRemaining() + book.get().getRemaining());
+                                if (bookPlace.isPresent()) {
+                                    orderBook.setRemaining(orderBook.getRemaining() + bookPlace.get().getRemaining());
                                 } else {
                                     bidList.add(orderBook);
                                 }
                             } else if (orderBook.getSide() != null && orderBook.getSide().equals("ask")) {
-                                if (askbook.isPresent()) {
-                                    orderBook.setRemaining(orderBook.getRemaining() + askbook.get().getRemaining());
+                                if (askBookPlace.isPresent()) {
+                                    orderBook.setRemaining(orderBook.getRemaining() + askBookPlace.get().getRemaining());
                                 } else {
                                     askList.add(orderBook);
                                 }
