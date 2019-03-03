@@ -1,17 +1,17 @@
 package com.johnchang.Queueco;
 
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
 import static java.lang.Double.valueOf;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.internal.LinkedTreeMap;
+import com.johnchang.Queueco.model.OrderBook;
 import com.johnchang.Queueco.model.Price;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -27,14 +27,24 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 @SpringBootApplication
 public class QueuecoApplication implements CommandLineRunner {
 
+    OrderBook orderBook;
+    List<OrderBook> orderBookList;
+    List<LinkedTreeMap> bestBidList;
+    List<LinkedTreeMap> askPriceList;
     Map<Double, Double> bestBidMap;
     Map<Double, Double> askPriceMap;
+    final ObjectMapper mapper;
     int count = 0;
 
     private static String GEMINI_WSS = "wss://api.gemini.com/v1/marketdata/btcusd";
 
     @Autowired
     public QueuecoApplication() {
+        orderBook = new OrderBook();
+        orderBookList = new ArrayList<>();
+        bestBidList = new ArrayList<>();
+        askPriceList = new ArrayList<>();
+        mapper = new ObjectMapper();
         bestBidMap = new TreeMap<>(Collections.reverseOrder());
         askPriceMap = new TreeMap<>();
     }
@@ -54,68 +64,47 @@ public class QueuecoApplication implements CommandLineRunner {
 
         @Override
         public void handleTextMessage(WebSocketSession session, TextMessage message) {
-
-            if (count >= 1) {
-                Map<Double, Double> bestBidMapCopy = bestBidMap;
-                Map<Double, Double> askPriceMapCopy = askPriceMap;
-                Map<Double, Double> bestBidMapCopy2 = new TreeMap<>(Collections.reverseOrder());
-                Map<Double, Double> askPriceMapCopy2 = new TreeMap<>();
-                Map.Entry<Double, Double> bestBidCopy;
-                Map.Entry<Double, Double> askPriceCopy;
-
-                Map value = new Gson().fromJson(message.getPayload(), Map.class);
-                List<LinkedTreeMap> events = (List<LinkedTreeMap>) value.get("events");
-
-                for (LinkedTreeMap treeMap : events) {
-                    if (treeMap.get("side") != null && treeMap.get("side").equals("bid") && treeMap.get("type").equals("change")) {
-                        bestBidMapCopy2.put(valueOf(treeMap.get("price").toString()), valueOf(treeMap.get("remaining").toString()));
+            Map value2 = new Gson().fromJson(message.getPayload(), Map.class);
+            List<LinkedTreeMap> orderbookEvents = (List<LinkedTreeMap>) value2.get("events");
+            for (LinkedTreeMap treeMap : orderbookEvents) {
+                if (treeMap.get("reason").equals("initial")) {
+                    if (treeMap.get("side") != null && treeMap.get("side").equals("bid")) {
+                        bestBidList.add(treeMap);
                     } else if (treeMap.get("side") != null && treeMap.get("side").equals("ask") && treeMap.get("type").equals("change")) {
-                        askPriceMapCopy2.put(valueOf(treeMap.get("price").toString()), valueOf(treeMap.get("remaining").toString()));
-                    }
-                }
-                if (bestBidMapCopy2.size() != 0) {
-                    if (!bestBidMapCopy.equals(bestBidMapCopy2)) {
-                        bestBidCopy = bestBidMapCopy2.entrySet().iterator().next();
-                        System.out.println(bestBidCopy.getKey() + " " + bestBidCopy.getValue() + " - ");
-                    }
-                }
-                if (askPriceMapCopy2.size() != 0) {
-                    if (!askPriceMapCopy.equals(askPriceMapCopy2)) {
-                        askPriceCopy = askPriceMapCopy.entrySet().iterator().next();
-                        System.out.println(" - " + askPriceCopy.getKey() + " " + askPriceCopy.getValue());
+                        askPriceList.add(treeMap);
                     }
                 }
             }
+            ++count;
+            if (count == 1) {
+                Collections.reverse(bestBidList);
+            }
+            System.out.println(bestBidList.get(0).get("price") + " " + bestBidList.get(0).get("remaining") + " - " +
+                    askPriceList.get(0).get("price") + " " + askPriceList.get(0).get("remaining"));
 
-            Map value = new Gson().fromJson(message.getPayload(), Map.class);
-            List<LinkedTreeMap> events = (List<LinkedTreeMap>) value.get("events");
-
-            for (LinkedTreeMap treeMap : events) {
-                if (treeMap.get("side") != null && treeMap.get("side").equals("bid")) {
-                    bestBidMap.put(valueOf(treeMap.get("price").toString()), valueOf(treeMap.get("remaining").toString()));
-                } else if (treeMap.get("side") != null && treeMap.get("side").equals("ask")) {
-                    askPriceMap.put(valueOf(treeMap.get("price").toString()), valueOf(treeMap.get("remaining").toString()));
+            for (LinkedTreeMap treeMap : orderbookEvents) {
+                if (treeMap.get("reason").equals("cancel")) {
+                    if (treeMap.get("side") != null && treeMap.get("side").equals("bid")) {
+                        bestBidList.remove(treeMap);
+                    } else if (treeMap.get("side") != null && treeMap.get("side").equals("ask")) {
+                        askPriceList.remove(treeMap);
+                    }
+                }
+                if (treeMap.get("reason").equals("place")) {
+                    if (treeMap.get("side") != null && treeMap.get("side").equals("bid")) {
+                        bestBidList.add(treeMap);
+                    } else if (treeMap.get("side") != null && treeMap.get("side").equals("ask")) {
+                        askPriceList.add(treeMap);
+                    }
+                }
+                if (treeMap.get("reason").equals("trade")) {
+                    if (treeMap.get("side") != null && treeMap.get("side").equals("bid")) {
+                        bestBidList.add(treeMap);
+                    } else if (treeMap.get("side") != null && treeMap.get("side").equals("ask")) {
+                        askPriceList.add(treeMap);
+                    }
                 }
             }
-//            TreeMap<Double, Double> bestBid = (TreeMap) bestBidMap.getFirstEntry();
-            Map.Entry<Double, Double> bestBid = bestBidMap.entrySet().iterator().next();
-            Map.Entry<Double, Double> askPrice = askPriceMap.entrySet().iterator().next();
-            if (count >= 1) {
-                Map<Double, Double> bestBidMapCopy = bestBidMap;
-                Map<Double, Double> askPriceMapCopy = askPriceMap;
-                Map<Double, Double> bestBidMapCopy2 = new TreeMap<>(Collections.reverseOrder());
-                Map<Double, Double> askPriceMapCopy2 = new TreeMap<>();
-            }
-            if (count == 0) {
-                count++;
-                System.out.println(bestBid.getKey() + " " + bestBid.getValue() + " - " + askPrice.getKey() + " " + askPrice.getValue());
-            }
-//            System.out.println(bestBid.getKey() + " " + bestBid.getValue() + " - " + askPrice.getKey() + " " + askPrice.getValue());
-//            DecimalFormat df = new DecimalFormat("#");
-////            df.setMaximumFractionDigits(2);
-////            System.out.print(df.format(bestList.get(0)));
-////            System.out.println(df.format(askList.get(0)));
-
         }
 
         private void setPriceAndQuantity(Double bestPrice, LinkedTreeMap treeMap, Price priceClass) {
