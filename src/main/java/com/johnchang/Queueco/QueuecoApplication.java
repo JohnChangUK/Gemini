@@ -2,9 +2,11 @@ package com.johnchang.Queueco;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import static java.lang.Double.valueOf;
 
@@ -28,7 +30,8 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 public class QueuecoApplication implements CommandLineRunner {
 
     OrderBook orderBook;
-    List<OrderBook> orderBookList;
+    List<OrderBook> bidList;
+    List<OrderBook> askList;
     List<LinkedTreeMap> bestBidList;
     List<LinkedTreeMap> askPriceList;
     Map<Double, Double> bestBidMap;
@@ -40,8 +43,8 @@ public class QueuecoApplication implements CommandLineRunner {
 
     @Autowired
     public QueuecoApplication() {
-        orderBook = new OrderBook();
-        orderBookList = new ArrayList<>();
+        bidList = new ArrayList<>();
+        askList = new ArrayList<>();
         bestBidList = new ArrayList<>();
         askPriceList = new ArrayList<>();
         mapper = new ObjectMapper();
@@ -66,21 +69,30 @@ public class QueuecoApplication implements CommandLineRunner {
         public void handleTextMessage(WebSocketSession session, TextMessage message) {
             Map value2 = new Gson().fromJson(message.getPayload(), Map.class);
             List<LinkedTreeMap> orderbookEvents = (List<LinkedTreeMap>) value2.get("events");
-            for (LinkedTreeMap treeMap : orderbookEvents) {
-                if (treeMap.get("reason").equals("initial")) {
-                    if (treeMap.get("side") != null && treeMap.get("side").equals("bid")) {
-                        bestBidList.add(treeMap);
-                    } else if (treeMap.get("side") != null && treeMap.get("side").equals("ask") && treeMap.get("type").equals("change")) {
-                        askPriceList.add(treeMap);
+            LinkedTreeMap result = new LinkedTreeMap();
+            for (LinkedTreeMap<Object, Object> map : orderbookEvents) {
+                for (Map.Entry<Object, Object> entry : map.entrySet()) {
+                    result.put(entry.getKey(), entry.getValue());
+                }
+
+                OrderBook orderBook = mapper.convertValue(result, OrderBook.class);
+                if (orderBook.getReason().equals("initial")) {
+                    if (orderBook.getSide() != null && orderBook.getSide().equals("bid")) {
+                        bidList.add(orderBook);
+                    } else if (orderBook.getSide() != null && orderBook.getSide().equals("ask")) {
+                        askList.add(orderBook);
                     }
                 }
             }
+
             ++count;
-            if (count == 1) {
-                Collections.reverse(bestBidList);
-            }
-            System.out.println(bestBidList.get(0).get("price") + " " + bestBidList.get(0).get("remaining") + " - " +
-                    askPriceList.get(0).get("price") + " " + askPriceList.get(0).get("remaining"));
+
+            Collections.sort(bidList, bidPriceCompare);
+            Collections.sort(askList, askPriceCompare);
+//            Collections.sort(bidList, bidremainingCompare);
+
+            System.out.println(bidList.get(0).getPrice() + " " + bidList.get(0).getRemaining() + " - " +
+                    askList.get(0).getPrice() + " " + askList.get(0).getRemaining());
 
             for (LinkedTreeMap treeMap : orderbookEvents) {
                 if (treeMap.get("reason").equals("cancel")) {
@@ -107,15 +119,26 @@ public class QueuecoApplication implements CommandLineRunner {
             }
         }
 
-        private void setPriceAndQuantity(Double bestPrice, LinkedTreeMap treeMap, Price priceClass) {
-            Double priceInt = valueOf(treeMap.get("price").toString());
+        public Comparator<LinkedTreeMap<Double, Double>> mapCompare = (o1, o2) -> o2.get("price").compareTo(o1.get("price"));
 
-            if (priceInt > bestPrice) {
-                bestPrice = priceInt;
-                priceClass.setPrice(bestPrice);
-                priceClass.setQuantity(valueOf((String) treeMap.get("remaining")));
-            }
-        }
+        public Comparator<OrderBook> bidPriceCompare = (o1, o2) -> o2.getPrice().compareTo(o1.getPrice());
+        public Comparator<OrderBook> bidDeltaCompare = (o1, o2) -> o2.getDelta().compareTo(o1.getDelta());
+        public Comparator<OrderBook> bidremainingCompare = (o1, o2) -> o2.getDelta().compareTo(o1.getDelta());
+
+        public Comparator<OrderBook> askPriceCompare = Comparator.comparing(OrderBook::getPrice);
+        public Comparator<OrderBook> askDeltaCompare = Comparator.comparing(OrderBook::getDelta);
+        public Comparator<OrderBook> askRemainingCompare = Comparator.comparing(OrderBook::getRemaining);
+
+
+//        private void setPriceAndQuantity(Double bestPrice, LinkedTreeMap treeMap, Price priceClass) {
+//            Double priceInt = valueOf(treeMap.get("price").toString());
+//
+//            if (priceInt > bestPrice) {
+//                bestPrice = priceInt;
+//                priceClass.setPrice(bestPrice);
+//                priceClass.setQuantity(valueOf((String) treeMap.get("remaining")));
+//            }
+//        }
 
         @Override
         public void afterConnectionEstablished(WebSocketSession session) throws Exception {

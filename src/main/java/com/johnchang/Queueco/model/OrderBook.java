@@ -11,8 +11,7 @@ public class OrderBook {
     private Double remaining;
     private String side;
 
-    public OrderBook() {
-    }
+    public OrderBook() {}
 
     public OrderBook(String type, String reason, Double price, Double delta, Double remaining, String side) {
         this.type = type;
