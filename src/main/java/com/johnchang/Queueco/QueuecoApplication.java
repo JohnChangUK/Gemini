@@ -1,21 +1,18 @@
 package com.johnchang.Queueco;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
-
-import static java.lang.Double.valueOf;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.internal.LinkedTreeMap;
 import com.johnchang.Queueco.model.OrderBook;
-import com.johnchang.Queueco.model.Price;
 import com.johnchang.Queueco.model.Trade;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -31,15 +28,12 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 @SpringBootApplication
 public class QueuecoApplication implements CommandLineRunner {
 
-    OrderBook orderBook;
-    List<OrderBook> bidList;
-    List<OrderBook> askList;
-    List<LinkedTreeMap> bestBidList;
-    List<LinkedTreeMap> askPriceList;
-    Map<Double, Double> bestBidMap;
-    Map<Double, Double> askPriceMap;
-    final ObjectMapper mapper;
-    int count = 0;
+    private List<OrderBook> bidList;
+    private List<OrderBook> askList;
+    private Map<Double, Double> cache;
+    private final ObjectMapper mapper;
+    private DecimalFormat df;
+    private DecimalFormat dfSatoshi;
 
     private static String GEMINI_WSS = "wss://api.gemini.com/v1/marketdata/btcusd";
 
@@ -47,11 +41,10 @@ public class QueuecoApplication implements CommandLineRunner {
     public QueuecoApplication() {
         bidList = new ArrayList<>();
         askList = new ArrayList<>();
-        bestBidList = new ArrayList<>();
-        askPriceList = new ArrayList<>();
         mapper = new ObjectMapper();
-        bestBidMap = new TreeMap<>(Collections.reverseOrder());
-        askPriceMap = new TreeMap<>();
+        cache = new HashMap<>();
+        df = new DecimalFormat("#0.00");
+        dfSatoshi = new DecimalFormat("#0.000000000");
     }
 
     public static void main(String[] args) {
@@ -74,6 +67,7 @@ public class QueuecoApplication implements CommandLineRunner {
 
             LinkedTreeMap result = new LinkedTreeMap();
             LinkedTreeMap tradeResult = new LinkedTreeMap();
+
             for (LinkedTreeMap<Object, Object> map : events) {
                 for (Map.Entry<Object, Object> entry : map.entrySet()) {
                     if (map.size() == 6) {
@@ -83,125 +77,139 @@ public class QueuecoApplication implements CommandLineRunner {
                     }
                 }
 
-                if (events.size() == 2) {
-                    // Trade event occurs
-                    OrderBook book = bidList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
-                    OrderBook askbook = askList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
-                    Trade trade = mapper.convertValue(tradeResult, Trade.class);
-                    System.out.println("TRADE Object: " + trade);
+                // Trade event occurs
+                if (events.get(0).size() == 5 && events.get(0).get("makerSide").equals("bid")) {
+                    Trade bidTrade = mapper.convertValue(tradeResult, Trade.class);
+                    OrderBook bidBook = bidList.stream().filter(x -> x.getPrice().equals(bidTrade.getPrice())).findFirst().orElse(null);
 
-                } else if (events.get(0).size() == 6) {
-                    OrderBook orderBook = mapper.convertValue(result, OrderBook.class);
-                    if (orderBook.getReason().equals("initial")) {
-                        if (orderBook.getSide() != null && orderBook.getSide().equals("bid")) {
-                            bidList.add(orderBook);
-                        } else if (orderBook.getSide() != null && orderBook.getSide().equals("ask")) {
-                            askList.add(orderBook);
-                        }
-                    }
-                    if (orderBook.getReason().equals("cancel")) {
-                        OrderBook book = bidList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
-                        OrderBook askbook = askList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
-                        if (orderBook.getSide() != null && orderBook.getSide().equals("bid")) {
-                            int index = bidList.indexOf(book);
-                            if (orderBook.getRemaining() == 0) {
-                                bidList.remove(book);
-                            } else {
-                                bidList.get(index).setRemaining(orderBook.getRemaining());
-                            }
-                        } else if (orderBook.getSide() != null && orderBook.getSide().equals("ask")) {
-                            int askIndex = askList.indexOf(askbook);
-                            if (orderBook.getRemaining() == 0) {
-                                askList.remove(askbook);
-                            } else {
-                                askList.get(askIndex).setRemaining(orderBook.getRemaining());
-                            }
-                        }
-                    }
-                    if (orderBook.getReason().equals("place")) {
-                        Optional<OrderBook> book = bidList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst();
-                        Optional<OrderBook> askbook = askList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst();
-                        if (orderBook.getSide() != null && orderBook.getSide().equals("bid")) {
-                            if (book.isPresent()) {
-                                orderBook.setRemaining(orderBook.getRemaining() + book.get().getRemaining());
-                            } else {
-                                bidList.add(orderBook);
-                            }
-                        } else if (orderBook.getSide() != null && orderBook.getSide().equals("ask")) {
-                            if (askbook.isPresent()) {
-                                orderBook.setRemaining(orderBook.getRemaining() + askbook.get().getRemaining());
-                            } else {
-                                askList.add(orderBook);
-                            }
-                        }
-                    }
-                    if (orderBook.getReason().equals("trade")) {
-                        if (orderBook.getSide() != null && orderBook.getSide().equals("bid")) {
-                            OrderBook book = bidList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().get();
-                            if (orderBook.getRemaining() == 0) {
-                                bidList.remove(book);
-                            } else {
-                                int index = bidList.indexOf(book);
-                                bidList.get(index).setRemaining(orderBook.getRemaining());
-                            }
-                            bidList.remove(orderBook);
-                        } else if (orderBook.getSide() != null && orderBook.getSide().equals("ask")) {
-                            OrderBook askBook = askList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().get();
-                            if (orderBook.getRemaining() == 0) {
-                                askList.remove(askBook);
-                            } else {
-                                int askIndex = askList.indexOf(askBook);
-                                askList.get(askIndex).setRemaining(orderBook.getRemaining());
-                            }
-                        }
+                    int index = bidList.indexOf(bidBook);
+                    bidList.get(index).setRemaining(bidList.get(index).getRemaining() - bidTrade.getAmount());
+
+                    if (bidList.get(index).getRemaining() <= 0) {
+                        bidList.remove(bidBook);
                     }
                 }
 
-                Collections.sort(bidList, bidPriceCompare);
-                Collections.sort(askList, askPriceCompare);
-//            Collections.sort(bidList, bidremainingCompare);
+                if (events.get(0).size() == 5 && events.get(0).get("makerSide").equals("ask")) {
+                    Trade askTrade = mapper.convertValue(tradeResult, Trade.class);
+                    OrderBook askBook = askList.stream().filter(x -> x.getPrice().equals(askTrade.getPrice())).findFirst().orElse(null);
+
+                    int index = askList.indexOf(askBook);
+                    askList.get(index).setRemaining(askList.get(index).getRemaining() - askTrade.getAmount());
+
+                    if (askList.get(index).getRemaining() <= 0) {
+                        askList.remove(askBook);
+                    }
+                }
+
+                if (events.get(0).size() != 5) {
+                    OrderBook orderBook = mapper.convertValue(result, OrderBook.class);
+
+                    if (orderBook != null) {
+                        if (orderBook.getReason().equals("initial")) {
+                            if (orderBook.getSide() != null && orderBook.getSide().equals("bid")) {
+                                bidList.add(orderBook);
+                            } else if (orderBook.getSide() != null && orderBook.getSide().equals("ask")) {
+                                askList.add(orderBook);
+                            }
+                        }
+
+                        if (orderBook.getReason().equals("cancel")) {
+                            OrderBook book = bidList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
+
+                            if (orderBook.getSide() != null && orderBook.getSide().equals("bid")) {
+                                int index = bidList.indexOf(book);
+
+                                if (orderBook.getRemaining() <= 0) {
+                                    bidList.remove(book);
+                                } else {
+                                    bidList.get(index).setRemaining(orderBook.getRemaining());
+                                }
+                            }
+
+                            if (orderBook.getSide() != null && orderBook.getSide().equals("ask")) {
+                                OrderBook askBook = askList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
+                                int askIndex = askList.indexOf(askBook);
+
+                                if (orderBook.getRemaining() <= 0) {
+                                    askList.remove(askBook);
+                                } else {
+                                    askList.get(askIndex).setRemaining(orderBook.getRemaining());
+                                }
+                            }
+                        }
+
+                        if (orderBook.getReason().equals("place")) {
+                            Optional<OrderBook> book = bidList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst();
+                            Optional<OrderBook> askbook = askList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst();
+
+                            if (orderBook.getSide() != null && orderBook.getSide().equals("bid")) {
+                                if (book.isPresent()) {
+                                    orderBook.setRemaining(orderBook.getRemaining() + book.get().getRemaining());
+                                } else {
+                                    bidList.add(orderBook);
+                                }
+                            } else if (orderBook.getSide() != null && orderBook.getSide().equals("ask")) {
+                                if (askbook.isPresent()) {
+                                    orderBook.setRemaining(orderBook.getRemaining() + askbook.get().getRemaining());
+                                } else {
+                                    askList.add(orderBook);
+                                }
+                            }
+                        }
+                    } else {
+                        System.out.println("order book is null: " + orderBook);
+                    }
+                }
+
+                bidList.sort(bidPriceCompare);
+                askList.sort(askPriceCompare);
             }
 
-            System.out.println(bidList.get(0).getPrice() + " " + bidList.get(0).getRemaining() + " - " +
-                    askList.get(0).getPrice() + " " + askList.get(0).getRemaining());
+            populateCache();
+
+            if (!cache.containsKey(bidList.get(0).getPrice()) || !cache.containsValue(bidList.get(0).getRemaining()) ||
+                    !cache.containsKey(askList.get(0).getPrice()) || !cache.containsValue(askList.get(0).getRemaining())) {
+
+                cache.put(bidList.get(0).getPrice(), bidList.get(0).getRemaining());
+                cache.put(askList.get(0).getPrice(), askList.get(0).getRemaining());
+
+                printBestBidAskPrice();
+            }
         }
 
-            public Comparator<LinkedTreeMap<Double, Double>> mapCompare = (o1, o2) -> o2.get("price").compareTo(o1.get("price"));
+        private void populateCache() {
+            if (cache.isEmpty()) {
+                printBestBidAskPrice();
 
-            public Comparator<OrderBook> bidPriceCompare = (o1, o2) -> o2.getPrice().compareTo(o1.getPrice());
-            public Comparator<OrderBook> bidDeltaCompare = (o1, o2) -> o2.getDelta().compareTo(o1.getDelta());
-            public Comparator<OrderBook> bidremainingCompare = (o1, o2) -> o2.getDelta().compareTo(o1.getDelta());
-
-            public Comparator<OrderBook> askPriceCompare = Comparator.comparing(OrderBook::getPrice);
-            public Comparator<OrderBook> askDeltaCompare = Comparator.comparing(OrderBook::getDelta);
-            public Comparator<OrderBook> askRemainingCompare = Comparator.comparing(OrderBook::getRemaining);
-
-
-//        private void setPriceAndQuantity(Double bestPrice, LinkedTreeMap treeMap, Price priceClass) {
-//            Double priceInt = valueOf(treeMap.get("price").toString());
-//
-//            if (priceInt > bestPrice) {
-//                bestPrice = priceInt;
-//                priceClass.setPrice(bestPrice);
-//                priceClass.setQuantity(valueOf((String) treeMap.get("remaining")));
-//            }
-//        }
-
-            @Override
-            public void afterConnectionEstablished (WebSocketSession session) throws Exception {
-                System.out.println("Connected");
-                session.setTextMessageSizeLimit(30000000);
-            }
-
-            @Override
-            public void handleTransportError (WebSocketSession session, Throwable exception){
-                System.out.println("Transport Error");
-            }
-
-            @Override
-            public void afterConnectionClosed (WebSocketSession session, CloseStatus status){
-                System.out.println("Connection Closed [" + status.getReason() + "]");
+                cache.put(bidList.get(0).getPrice(), bidList.get(0).getRemaining());
+                cache.put(askList.get(0).getPrice(), askList.get(0).getRemaining());
             }
         }
 
+        Comparator<OrderBook> bidPriceCompare = (o1, o2) -> o2.getPrice().compareTo(o1.getPrice());
+
+        Comparator<OrderBook> askPriceCompare = Comparator.comparing(OrderBook::getPrice);
+
+        private void printBestBidAskPrice() {
+            System.out.println(df.format(bidList.get(0).getPrice()) + " " + dfSatoshi.format(bidList.get(0).getRemaining()) + " - " +
+                    df.format(askList.get(0).getPrice()) + " " + dfSatoshi.format(askList.get(0).getRemaining()));
+        }
+
+        @Override
+        public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+            System.out.println("Connected");
+            session.setTextMessageSizeLimit(30000000);
+        }
+
+        @Override
+        public void handleTransportError(WebSocketSession session, Throwable exception) {
+            System.out.println("Transport Error");
+        }
+
+        @Override
+        public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+            System.out.println("Connection Closed [" + status.getReason() + "]");
+        }
     }
+}
