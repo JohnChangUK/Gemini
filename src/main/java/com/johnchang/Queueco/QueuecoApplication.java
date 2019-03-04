@@ -2,7 +2,6 @@ package com.johnchang.Queueco;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -83,12 +82,7 @@ public class QueuecoApplication implements CommandLineRunner {
                     OrderBook bidBookTrade = bidList.stream().filter(x -> x.getPrice().equals(bidTrade.getPrice())).findFirst().orElse(null);
 
                     if (bidList.indexOf(bidBookTrade) != -1) {
-                        int index = bidList.indexOf(bidBookTrade);
-                        bidList.get(index).setRemaining(bidList.get(index).getRemaining() - bidTrade.getAmount());
-
-                        if (bidList.get(index).getRemaining() <= 0) {
-                            bidList.remove(bidBookTrade);
-                        }
+                        executeTradeEvent(bidTrade, bidBookTrade, bidList);
                     } else {
                         System.out.println("Orderbook doesn't exist for BidBookTrade: " + bidBookTrade);
                     }
@@ -99,12 +93,7 @@ public class QueuecoApplication implements CommandLineRunner {
                     OrderBook askBookTrade = askList.stream().filter(x -> x.getPrice().equals(askTrade.getPrice())).findFirst().orElse(null);
 
                     if (askList.indexOf(askBookTrade) != -1) {
-                        int index = askList.indexOf(askBookTrade);
-                        askList.get(index).setRemaining(askList.get(index).getRemaining() - askTrade.getAmount());
-
-                        if (askList.get(index).getRemaining() <= 0) {
-                            askList.remove(askBookTrade);
-                        }
+                        executeTradeEvent(askTrade, askBookTrade, askList);
                     } else {
                         System.out.println("Orderbook doesnt exist for AskBookTrade: " + askBookTrade);
                     }
@@ -112,6 +101,8 @@ public class QueuecoApplication implements CommandLineRunner {
 
                 if (events.get(0).size() != 5) {
                     OrderBook orderBook = mapper.convertValue(result, OrderBook.class);
+                    OrderBook bidOrderBook = bidList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
+                    OrderBook askOrderBook = askList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
 
                     if (orderBook != null) {
                         if (orderBook.getReason().equals("initial")) {
@@ -123,34 +114,19 @@ public class QueuecoApplication implements CommandLineRunner {
                         }
 
                         if (orderBook.getReason().equals("cancel")) {
-                            OrderBook bidBookCancel = bidList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
-
                             if (orderBook.getSide() != null && orderBook.getSide().equals("bid")) {
-                                if (bidList.indexOf(bidBookCancel) != -1) {
-                                    int index = bidList.indexOf(bidBookCancel);
-
-                                    if (orderBook.getRemaining() <= 0) {
-                                        bidList.remove(bidBookCancel);
-                                    } else {
-                                        bidList.get(index).setRemaining(orderBook.getRemaining());
-                                    }
+                                if (bidList.indexOf(bidOrderBook) != -1) {
+                                    cancelTradeEvent(orderBook, bidOrderBook, bidList);
                                 } else {
-                                    System.out.println("Orderbook doesnt exist for BidBookCancel: " + bidBookCancel);
+                                    System.out.println("Orderbook doesnt exist for BidBookCancel: " + bidOrderBook);
                                 }
                             }
 
                             if (orderBook.getSide() != null && orderBook.getSide().equals("ask")) {
-                                OrderBook askBookCancel = askList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
-                                if (askList.indexOf(askBookCancel) != -1) {
-                                    int askIndex = askList.indexOf(askBookCancel);
-
-                                    if (orderBook.getRemaining() <= 0) {
-                                        askList.remove(askBookCancel);
-                                    } else {
-                                        askList.get(askIndex).setRemaining(orderBook.getRemaining());
-                                    }
+                                if (askList.indexOf(askOrderBook) != -1) {
+                                    cancelTradeEvent(orderBook, askOrderBook, askList);
                                 } else {
-                                    System.out.println("Orderbook doesnt exist for AskBookCancel: " + askBookCancel);
+                                    System.out.println("Orderbook doesnt exist for AskBookCancel: " + askOrderBook);
                                 }
                             }
                         }
@@ -182,8 +158,31 @@ public class QueuecoApplication implements CommandLineRunner {
                 askList.sort(askPriceCompare);
             }
 
-            populateCache();
+            populateCacheIfEmpty();
 
+            printPriceIfChanged();
+        }
+
+        private void executeTradeEvent(Trade askTrade, OrderBook filteredBook, List<OrderBook> bidOrAskList) {
+            int index = bidOrAskList.indexOf(filteredBook);
+            bidOrAskList.get(index).setRemaining(bidOrAskList.get(index).getRemaining() - askTrade.getAmount());
+
+            if (bidOrAskList.get(index).getRemaining() <= 0) {
+                bidOrAskList.remove(filteredBook);
+            }
+        }
+
+        private void cancelTradeEvent(OrderBook orderBook, OrderBook filteredBook, List<OrderBook> bidOrAskList) {
+            int index = bidOrAskList.indexOf(filteredBook);
+
+            if (orderBook.getRemaining() <= 0) {
+                bidOrAskList.remove(filteredBook);
+            } else {
+                bidOrAskList.get(index).setRemaining(orderBook.getRemaining());
+            }
+        }
+
+        private void printPriceIfChanged() {
             if (!cache.containsKey(bidList.get(0).getPrice()) || !cache.containsValue(bidList.get(0).getRemaining()) ||
                     !cache.containsKey(askList.get(0).getPrice()) || !cache.containsValue(askList.get(0).getRemaining())) {
 
@@ -194,7 +193,7 @@ public class QueuecoApplication implements CommandLineRunner {
             }
         }
 
-        private void populateCache() {
+        private void populateCacheIfEmpty() {
             if (cache.isEmpty()) {
                 printBestBidAskPrice();
 
@@ -204,7 +203,6 @@ public class QueuecoApplication implements CommandLineRunner {
         }
 
         Comparator<OrderBook> bidPriceCompare = (o1, o2) -> o2.getPrice().compareTo(o1.getPrice());
-
         Comparator<OrderBook> askPriceCompare = Comparator.comparing(OrderBook::getPrice);
 
         private void printBestBidAskPrice() {
