@@ -11,8 +11,13 @@ import java.util.Optional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.internal.LinkedTreeMap;
+import com.johnchang.Queueco.model.AuctionOpen;
+import com.johnchang.Queueco.model.BlockTrade;
+import com.johnchang.Queueco.model.IndicativePrice;
 import com.johnchang.Queueco.model.OrderBook;
+import com.johnchang.Queueco.model.RunAuction;
 import com.johnchang.Queueco.model.Trade;
+import com.johnchang.Queueco.model.TradeAuction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -66,6 +71,11 @@ public class QueuecoApplication implements CommandLineRunner {
 
             LinkedTreeMap result = new LinkedTreeMap();
             LinkedTreeMap tradeResult = new LinkedTreeMap();
+            LinkedTreeMap tradeAuction = new LinkedTreeMap();
+            LinkedTreeMap blockTrade = new LinkedTreeMap();
+            LinkedTreeMap auctionOpen = new LinkedTreeMap();
+            LinkedTreeMap auctionRun = new LinkedTreeMap();
+            LinkedTreeMap indicativePrice = new LinkedTreeMap();
 
             for (LinkedTreeMap<Object, Object> map : events) {
                 for (Map.Entry<Object, Object> entry : map.entrySet()) {
@@ -73,6 +83,16 @@ public class QueuecoApplication implements CommandLineRunner {
                         result.put(entry.getKey(), entry.getValue());
                     } else if (map.size() == 5) {
                         tradeResult.put(entry.getKey(), entry.getValue());
+                    } else if (map.size() == 8) {
+                        tradeAuction.put(entry.getKey(), entry.getValue());
+                    } else if (map.size() == 4) {
+                        blockTrade.put(entry.getKey(), entry.getValue());
+                    } else if (map.size() == 5) {
+                        auctionOpen.put(entry.getKey(), entry.getValue());
+                    } else if (map.size() == 9 && map.containsKey("auction_price")) {
+                        auctionRun.put(entry.getKey(), entry.getValue());
+                    } else if (map.size() == 9 && map.containsKey("indicative_price")) {
+                        indicativePrice.put(entry.getKey(), entry.getValue());
                     }
                 }
 
@@ -96,6 +116,36 @@ public class QueuecoApplication implements CommandLineRunner {
                         executeTradeEvent(askTrade, askBookTrade, askList);
                     } else {
                         System.out.println("Orderbook doesnt exist for AskBookTrade: " + askBookTrade);
+                    }
+                }
+
+                if (events.get(0).size() == 5 && events.get(0).get("makerSide").equals("auction")) {
+                    Trade bidTrade = mapper.convertValue(tradeResult, Trade.class);
+                    TradeAuction tradeAuctionResult = mapper.convertValue(tradeAuction, TradeAuction.class);
+
+                    System.out.println("Trade Bid Auction: " + bidTrade);
+                    System.out.println("Trade Auction Result: " + tradeAuctionResult);
+                }
+
+                if (events.get(0).size() == 4) {
+                    BlockTrade blockTradeResult = mapper.convertValue(blockTrade, BlockTrade.class);
+                    System.out.println("Block Trade: " + blockTradeResult);
+                }
+
+                if (events.get(0).size() == 5 && events.get(0).containsKey("auction_open_ms")) {
+                    AuctionOpen auctionOpenResult = mapper.convertValue(auctionOpen, AuctionOpen.class);
+                    System.out.println("Auction Open: " + auctionOpenResult);
+                }
+
+                if (events.get(0).size() == 9 && events.get(0).containsKey("indicative_price")) {
+                    IndicativePrice indicativePriceResult = mapper.convertValue(indicativePrice, IndicativePrice.class);
+                    System.out.println("Auction Open: " + indicativePriceResult);
+                }
+
+                if (events.get(0).size() == 5 && events.get(0).get("makerSide").equals("auction")) {
+                    if (events.size() == 2 && events.get(1).size() == 9) {
+                        RunAuction runAuction = mapper.convertValue(auctionRun, RunAuction.class);
+                        System.out.println("Auction Open: " + runAuction);
                     }
                 }
 
