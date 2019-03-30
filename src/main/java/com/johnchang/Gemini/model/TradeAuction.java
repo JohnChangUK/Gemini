@@ -1,4 +1,4 @@
-package com.johnchang.Queueco.model;
+package com.johnchang.Gemini.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

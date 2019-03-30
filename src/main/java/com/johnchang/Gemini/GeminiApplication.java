@@ -1,4 +1,4 @@
-package com.johnchang.Queueco;
+package com.johnchang.Gemini;
 
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -11,13 +11,13 @@ import java.util.Optional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.internal.LinkedTreeMap;
-import com.johnchang.Queueco.model.AuctionOpen;
-import com.johnchang.Queueco.model.BlockTrade;
-import com.johnchang.Queueco.model.IndicativePrice;
-import com.johnchang.Queueco.model.OrderBook;
-import com.johnchang.Queueco.model.RunAuction;
-import com.johnchang.Queueco.model.Trade;
-import com.johnchang.Queueco.model.TradeAuction;
+import com.johnchang.Gemini.model.AuctionOpen;
+import com.johnchang.Gemini.model.BlockTrade;
+import com.johnchang.Gemini.model.IndicativePrice;
+import com.johnchang.Gemini.model.OrderBook;
+import com.johnchang.Gemini.model.RunAuction;
+import com.johnchang.Gemini.model.Trade;
+import com.johnchang.Gemini.model.TradeAuction;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -30,7 +30,7 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 @SpringBootApplication
-public class QueuecoApplication implements CommandLineRunner {
+public class GeminiApplication implements CommandLineRunner {
 
     private List<OrderBook> bidList;
     private List<OrderBook> askList;
@@ -42,7 +42,7 @@ public class QueuecoApplication implements CommandLineRunner {
     private static String GEMINI_WSS = "wss://api.gemini.com/v1/marketdata/btcusd";
 
     @Autowired
-    public QueuecoApplication() {
+    public GeminiApplication() {
         bidList = new ArrayList<>();
         askList = new ArrayList<>();
         mapper = new ObjectMapper();
@@ -52,7 +52,7 @@ public class QueuecoApplication implements CommandLineRunner {
     }
 
     public static void main(String[] args) {
-        SpringApplication.run(QueuecoApplication.class, args);
+        SpringApplication.run(GeminiApplication.class, args);
     }
 
     @Override
@@ -261,7 +261,7 @@ public class QueuecoApplication implements CommandLineRunner {
         }
 
         @Override
-        public void afterConnectionEstablished(WebSocketSession session) throws Exception {
+        public void afterConnectionEstablished(WebSocketSession session) {
             System.out.println("Connected");
             session.setTextMessageSizeLimit(30000000);
         }
