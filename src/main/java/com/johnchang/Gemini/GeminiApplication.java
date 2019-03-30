@@ -99,23 +99,31 @@ public class GeminiApplication implements CommandLineRunner {
                 // Trade event occurs
                 if (events.get(0).size() == 5 && events.get(0).get("makerSide").equals("bid")) {
                     Trade bidTrade = mapper.convertValue(tradeResult, Trade.class);
-                    OrderBook bidBookTrade = bidList.stream().filter(x -> x.getPrice().equals(bidTrade.getPrice())).findFirst().orElse(null);
+                    OrderBook bidBookTrade = bidList.stream()
+                            .filter(x -> x.getPrice().equals(bidTrade.getPrice()))
+                            .findFirst()
+                            .orElse(null);
 
                     if (bidList.indexOf(bidBookTrade) != -1) {
                         executeTradeEvent(bidTrade, bidBookTrade, bidList);
                     } else {
-                        System.out.println("Orderbook doesn't exist for BidBookTrade: " + bidBookTrade);
+                        System.out.println(
+                                "Orderbook doesn't exist for BidBookTrade: " + bidBookTrade);
                     }
                 }
 
                 if (events.get(0).size() == 5 && events.get(0).get("makerSide").equals("ask")) {
                     Trade askTrade = mapper.convertValue(tradeResult, Trade.class);
-                    OrderBook askBookTrade = askList.stream().filter(x -> x.getPrice().equals(askTrade.getPrice())).findFirst().orElse(null);
+                    OrderBook askBookTrade = askList.stream()
+                            .filter(x -> x.getPrice().equals(askTrade.getPrice()))
+                            .findFirst()
+                            .orElse(null);
 
                     if (askList.indexOf(askBookTrade) != -1) {
                         executeTradeEvent(askTrade, askBookTrade, askList);
                     } else {
-                        System.out.println("Orderbook doesnt exist for AskBookTrade: " + askBookTrade);
+                        System.out.println(
+                                "Orderbook doesnt exist for AskBookTrade: " + askBookTrade);
                     }
                 }
 
@@ -151,8 +159,14 @@ public class GeminiApplication implements CommandLineRunner {
 
                 if (events.get(0).size() != 5) {
                     OrderBook orderBook = mapper.convertValue(result, OrderBook.class);
-                    OrderBook bidOrderBook = bidList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
-                    OrderBook askOrderBook = askList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst().orElse(orderBook);
+                    OrderBook bidOrderBook = bidList.stream()
+                            .filter(x -> x.getPrice().equals(orderBook.getPrice()))
+                            .findFirst()
+                            .orElse(orderBook);
+                    OrderBook askOrderBook = askList.stream()
+                            .filter(x -> x.getPrice().equals(orderBook.getPrice()))
+                            .findFirst()
+                            .orElse(orderBook);
 
                     if (orderBook != null) {
                         if (orderBook.getReason().equals("initial")) {
@@ -168,7 +182,8 @@ public class GeminiApplication implements CommandLineRunner {
                                 if (bidList.indexOf(bidOrderBook) != -1) {
                                     cancelTradeEvent(orderBook, bidOrderBook, bidList);
                                 } else {
-                                    System.out.println("Orderbook doesnt exist for BidBookCancel: " + bidOrderBook);
+                                    System.out.println(
+                                            "Orderbook doesnt exist for BidBookCancel: " + bidOrderBook);
                                 }
                             }
 
@@ -176,24 +191,31 @@ public class GeminiApplication implements CommandLineRunner {
                                 if (askList.indexOf(askOrderBook) != -1) {
                                     cancelTradeEvent(orderBook, askOrderBook, askList);
                                 } else {
-                                    System.out.println("Orderbook doesnt exist for AskBookCancel: " + askOrderBook);
+                                    System.out.println(
+                                            "Orderbook doesnt exist for AskBookCancel: " + askOrderBook);
                                 }
                             }
                         }
 
                         if (orderBook.getReason().equals("place")) {
-                            Optional<OrderBook> bookPlace = bidList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst();
-                            Optional<OrderBook> askBookPlace = askList.stream().filter(x -> x.getPrice().equals(orderBook.getPrice())).findFirst();
+                            Optional<OrderBook> bookPlace = bidList.stream()
+                                    .filter(x -> x.getPrice().equals(orderBook.getPrice()))
+                                    .findFirst();
+                            Optional<OrderBook> askBookPlace = askList.stream()
+                                    .filter(x -> x.getPrice().equals(orderBook.getPrice()))
+                                    .findFirst();
 
                             if (orderBook.getSide() != null && orderBook.getSide().equals("bid")) {
                                 if (bookPlace.isPresent()) {
-                                    orderBook.setRemaining(orderBook.getRemaining() + bookPlace.get().getRemaining());
+                                    orderBook.setRemaining(orderBook.getRemaining() +
+                                            bookPlace.get().getRemaining());
                                 } else {
                                     bidList.add(orderBook);
                                 }
                             } else if (orderBook.getSide() != null && orderBook.getSide().equals("ask")) {
                                 if (askBookPlace.isPresent()) {
-                                    orderBook.setRemaining(orderBook.getRemaining() + askBookPlace.get().getRemaining());
+                                    orderBook.setRemaining(orderBook.getRemaining() +
+                                            askBookPlace.get().getRemaining());
                                 } else {
                                     askList.add(orderBook);
                                 }
@@ -213,28 +235,35 @@ public class GeminiApplication implements CommandLineRunner {
             printPriceIfChanged();
         }
 
-        private void executeTradeEvent(Trade askTrade, OrderBook filteredBook, List<OrderBook> bidOrAskList) {
+        private void executeTradeEvent(
+                Trade askTrade, OrderBook filteredBook, List<OrderBook> bidOrAskList) {
             int index = bidOrAskList.indexOf(filteredBook);
-            bidOrAskList.get(index).setRemaining(bidOrAskList.get(index).getRemaining() - askTrade.getAmount());
+
+            bidOrAskList.get(index)
+                    .setRemaining(bidOrAskList.get(index).getRemaining() - askTrade.getAmount());
 
             if (bidOrAskList.get(index).getRemaining() <= 0) {
                 bidOrAskList.remove(filteredBook);
             }
         }
 
-        private void cancelTradeEvent(OrderBook orderBook, OrderBook filteredBook, List<OrderBook> bidOrAskList) {
+        private void cancelTradeEvent(
+                OrderBook orderBook, OrderBook filteredBook, List<OrderBook> bidOrAskList) {
             int index = bidOrAskList.indexOf(filteredBook);
 
             if (orderBook.getRemaining() <= 0) {
                 bidOrAskList.remove(filteredBook);
             } else {
-                bidOrAskList.get(index).setRemaining(orderBook.getRemaining());
+                bidOrAskList.get(index)
+                        .setRemaining(orderBook.getRemaining());
             }
         }
 
         private void printPriceIfChanged() {
-            if (!cache.containsKey(bidList.get(0).getPrice()) || !cache.containsValue(bidList.get(0).getRemaining()) ||
-                    !cache.containsKey(askList.get(0).getPrice()) || !cache.containsValue(askList.get(0).getRemaining())) {
+            if (!cache.containsKey(bidList.get(0).getPrice()) ||
+                    !cache.containsValue(bidList.get(0).getRemaining()) ||
+                    !cache.containsKey(askList.get(0).getPrice()) ||
+                    !cache.containsValue(askList.get(0).getRemaining())) {
 
                 cache.put(bidList.get(0).getPrice(), bidList.get(0).getRemaining());
                 cache.put(askList.get(0).getPrice(), askList.get(0).getRemaining());
@@ -256,8 +285,11 @@ public class GeminiApplication implements CommandLineRunner {
         Comparator<OrderBook> askPriceCompare = Comparator.comparing(OrderBook::getPrice);
 
         private void printBestBidAskPrice() {
-            System.out.println(df.format(bidList.get(0).getPrice()) + " " + dfSatoshi.format(bidList.get(0).getRemaining()) + " - " +
-                    df.format(askList.get(0).getPrice()) + " " + dfSatoshi.format(askList.get(0).getRemaining()));
+            System.out.println(
+                    df.format(bidList.get(0).getPrice()) + " " +
+                            dfSatoshi.format(bidList.get(0).getRemaining()) + " - " +
+                            df.format(askList.get(0).getPrice()) + " " +
+                            dfSatoshi.format(askList.get(0).getRemaining()));
         }
 
         @Override
