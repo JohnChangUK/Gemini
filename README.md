@@ -1,4 +1,4 @@
-## Ingests the Gemini Websocket API and filters for the Best Bid and Ask Price of pairs BTC/USD in real time.
+## Ingests the Gemini Websocket API and calculates the Best Bid and Ask Price of BTC in real time.
 
 ### Gemini Best Bid and Ask Price
 
