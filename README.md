@@ -1,4 +1,4 @@
-## Ingests the Gemini Websocket API and calculates the Best Bid and Ask Price of BTC in real time.
+## Calculates the best bid and ask price of BTC in real time.
 
 ### Gemini Best Bid and Ask Price
 
